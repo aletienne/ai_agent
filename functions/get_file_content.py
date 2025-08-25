@@ -1,6 +1,25 @@
 import os
 from functions import config
 
+from google import genai
+import google.genai
+from google.genai import types
+
+schema_get_file_content = types.FunctionDeclaration(
+    name="get_file_content",
+    description="Get the content of the specified file, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file to get content from, relative to the working directory.",
+            ),
+        },
+    ),
+)
+
+
 def get_file_content(working_directory, file_path):
 
     path=os.path.join(working_directory, file_path)
@@ -23,3 +42,6 @@ def get_file_content(working_directory, file_path):
 # os.path.getsize(): Get the size of a file
 # os.path.isfile(): Check if a path is a file
 # .join(): Join a list of strings together with a separator
+# os.path.exists: Check if a path exists
+# os.makedirs: Create a directory and all its parents
+# os.path.dirname: Return the directory name
