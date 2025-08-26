@@ -2,11 +2,17 @@ import os
 import sys
 from dotenv import load_dotenv # type: ignore
 from google import genai
+import google.genai
+from google.genai import types
+
 from functions.get_files_info import schema_get_files_info
 from functions.get_file_content import schema_get_file_content
 from functions.run_python_file import schema_run_python_file
 from functions.write_file import schema_write_file
+from functions.call_function import call_function
 
+import warnings
+warnings.filterwarnings("ignore")
 
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -39,21 +45,44 @@ All paths you provide should be relative to the working directory. You do not ne
         print("Usage: python main.py <prompt>")
         sys.exit(1)
     contents=" ".join(sys.argv[1:])
-    print(contents)
-    #sys.exit(0)
-    response = client.models.generate_content(
-        model=model, 
-        contents=contents,
-        config=genai.types.GenerateContentConfig(
-            tools=[available_functions],system_instruction=system_prompt
-            ),
-    )
-    print(response.text)
-    if response.function_calls:
-        for function_call in response.function_calls:
-            print(f"Calling function: {function_call.name}({function_call.args})")
-    print("Prompt tokens: " + str(response.usage_metadata.prompt_token_count))
-    print("Response tokens: " + str(response.usage_metadata.candidates_token_count))
+    messages=[]
+    messages.append(contents)
+    round=0
+
+    while round<20:
+        round+=1
+        response = client.models.generate_content(
+            model=model, 
+            contents=messages,
+            config=genai.types.GenerateContentConfig(
+                tools=[available_functions],system_instruction=system_prompt
+                ),
+        )
+        if response.candidates != None:
+            for current_response in response.candidates:
+                #print(current_response.content)
+                messages.append(current_response.content)
+
+        if response.function_calls:
+            for function_call in response.function_calls:
+                print(f"Calling function: {function_call.name}({function_call.args})")
+                function_response = call_function(function_call)
+                if function_response.parts[0].function_response.response:
+                    tool_message = types.Content(
+                        role="user",  # Tool results come back as "user" messages
+                        parts=[types.Part(text=(f"-> {function_response.parts[0].function_response.response}"))]  # The actual results
+                    )
+                    messages.append(tool_message)
+                    #print(f"-> {function_response.parts[0].function_response.response}")
+                else:
+                    raise ValueError("No response from function call")
+        if response.text != None: 
+            print(response.text)
+            #print("Prompt tokens: " + str(response.usage_metadata.prompt_token_count))
+            #print("Response tokens: " + str(response.usage_metadata.candidates_token_count))
+            #round=20
+        if "Is there anything else" in response.text:
+            round=20
 
 if __name__ == "__main__":
     main()

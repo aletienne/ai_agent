@@ -9,6 +9,7 @@ def main():
 
     user_prompt=" ".join(sys.argv[1:])
     file=get_files_info("/home/aetienne/GIT/BOOT.DEV/ai_agent",user_prompt)
+    
     print(file)
 
 
